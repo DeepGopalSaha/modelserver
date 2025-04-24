@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Continuous Frame Sender</title>
+  <style>
+    body {
+      font-family: Arial;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 2rem;
+    }
+    video, img {
+      border: 2px solid black;
+      max-width: 640px;
+      width: 50%;
+      height:20%,
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h2>Streaming Frames to FastAPI</h2>
+  <video id="video" autoplay playsinline></video>
+  <img id="result" alt="Processed Frame"/>
+
+  <script>
+    const video = document.getElementById("video");
+    const result = document.getElementById("result");
+    const canvas = document.createElement("canvas");
+
+    let lat = "0.0", lon = "0.0";
+    let sendInterval = 500; // milliseconds (2 fps)
+
+    // Get webcam stream
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        video.srcObject = stream;
+      })
+      .catch((err) => alert("Webcam error: " + err.message));
+
+    // Get user location once
+    navigator.geolocation.getCurrentPosition((pos) => {
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+    }, (err) => {
+      console.warn("Location not available:", err.message);
+    });
+
+    async function sendFrame() {
+      try {
+        const ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          const formData = new FormData();
+          formData.append("frame", blob, "frame.jpg");
+
+          const response = await fetch(`http://localhost:8000/process-frame?lat=${lat}&lon=${lon}`, {
+            method: "POST",
+            body: formData
+          });
+
+          if (response.ok) {
+            const imageBlob = await response.blob();
+            result.src = URL.createObjectURL(imageBlob);
+          } else {
+            console.error("Server error:", await response.text());
+          }
+        }, "image/jpeg", 0.85);
+      } catch (err) {
+        console.error("Send error:", err);
+      }
+    }
+
+    // Start continuous sending
+    setInterval(sendFrame, sendInterval);
+  </script>
+</body>
+</html>
