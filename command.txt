@@ -1,0 +1,1 @@
+"D:\D drive\001. COLLEGE _ GCELT\0. STUDY MATERIAL\Final_year_proj_Website\final\Dash_api\modelServer\.venv\Scripts\python.exe" -m uvicorn home:frame_processor --reload
